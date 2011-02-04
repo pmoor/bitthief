@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  BitThief - A Free Riding BitTorrent Client
+  Copyright (C) 2006 Patrick Moor <patrick@moor.ws>
+
+  This program is free software; you can redistribute it and/or
+  modify it under the terms of the GNU General Public License
+  as published by the Free Software Foundation; either version 2
+  of the License, or (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
+  USA.
+-->
+<project name="BitThief" default="compile-tests">
+
+  <description>builds and deploys the BitThief client</description>
+  
+  <property name="src" location="src"/>
+  <property name="test-src" location="test"/>
+  <property name="build" location="bin"/>
+  <property name="test-build" location="bin-test"/>
+  <property name="lib" location="lib"/>
+  <property name="statics" location="static"/>
+  <property name="dist" location="dist"/>
+  <property name="distfiles" location="distfiles"/>
+
+  <property name="name" value="BitThief"/>
+
+  <property file="${statics}/version.properties"/>
+  <property name="version" value="${version.major}.${version.minor}.${version.tiny}"/>
+
+  <path id="classpath">
+    <pathelement location="${build}"/>
+    <pathelement location="${statics}"/>
+  </path>
+
+  <path id="external libraries">
+    <pathelement location="${lib}/easymockclassextension2.0_Pre-Release/easymockclassextension.jar"/>
+    <pathelement location="${lib}/commons-codec-1.3/commons-codec-1.3.jar"/>
+    <pathelement location="${lib}/cglib-2.1_3/cglib-nodep-2.1_3.jar"/>
+    <pathelement location="${lib}/easymock2.0/easymock.jar"/>
+    <pathelement location="${lib}/logging-log4j-1.2.13/dist/lib/log4j-1.2.13.jar"/>
+    <pathelement location="${lib}/junit3.8.2/junit.jar"/>
+    <pathelement location="${lib}/commons-cli-1.0/commons-cli-1.0.jar"/>
+    <pathelement location="${lib}/jfreechart-1.0.1/lib/jfreechart-1.0.1.jar"/>
+    <pathelement location="${lib}/jfreechart-1.0.1/lib/jcommon-1.0.0.jar"/>
+  </path>
+
+  <target name="loadrevisionproperty">
+    <exec failonerror="true" executable="svnversion" outputproperty="revision">
+      <arg value="-n"/>
+      <arg value="${src}"/>
+    </exec>
+    <property name="versiondist" value="${dist}/${name}-${version}-${revision}"/>
+    <echo file="${statics}/revision.properties">version.revision = ${revision}${line.separator}</echo>
+    <echo>Revision found: ${revision}</echo>
+  </target>
+
+  <target name="init" depends="loadrevisionproperty">
+    <tstamp/>
+  </target>
+
+  <target name="compile" depends="init" description="compiles sources">
+    <mkdir dir="${build}"/>
+    <javac srcdir="${src}" destdir="${build}" optimize="on" target="1.5" encoding="UTF-8" debug="true">
+      <classpath refid="external libraries"/>
+    </javac>
+  </target>
+
+  <target name="compile-tests" depends="compile" description="compiles test sources">
+    <mkdir dir="${test-build}"/>
+    <javac srcdir="${test-src}" destdir="${test-build}" optimize="on" target="1.5" encoding="UTF-8" debug="true">
+      <classpath>
+        <pathelement location="${build}"/>
+        <path refid="external libraries"/>
+      </classpath>
+    </javac>
+  </target>
+
+  <target name="run-tests" depends="compile-tests">
+    <java classname="ws.moor.bt.AllTests" fork="true">
+      <classpath>
+        <pathelement location="${test-build}"/>
+        <path refid="classpath"/>
+	<path refid="external libraries"/>
+      </classpath>
+    </java>
+  </target>
+
+  <target name="dist" depends="compile">
+    <mkdir dir="${dist}"/>
+    <mkdir dir="${versiondist}"/>
+    <jar destfile="${versiondist}/${name}.jar" keepcompression="true">
+      <fileset dir="${build}" includes="**/*.class"/>
+      <fileset dir="${statics}"/>
+      <manifest>
+        <attribute name="Main-Class" value="ws.moor.bt.BitThief"/>
+	<attribute name="Built-By" value="${user.name}"/>
+	<attribute name="Class-Path" value="commons-codec-1.3.jar log4j-1.2.13.jar commons-cli-1.0.jar jfreechart-1.0.1.jar jcommon-1.0.0.jar"/>
+      </manifest>
+    </jar>
+    <copy file="${lib}/logging-log4j-1.2.13/dist/lib/log4j-1.2.13.jar" todir="${versiondist}"/>
+    <copy file="${lib}/commons-codec-1.3/commons-codec-1.3.jar" todir="${versiondist}"/>
+    <copy file="${lib}/commons-cli-1.0/commons-cli-1.0.jar" todir="${versiondist}"/>
+    <copy file="${lib}/jfreechart-1.0.1/lib/jfreechart-1.0.1.jar" todir="${versiondist}"/>
+    <copy file="${lib}/jfreechart-1.0.1/lib/jcommon-1.0.0.jar" todir="${versiondist}"/>
+    
+    <copy todir="${versiondist}">
+      <fileset dir="${distfiles}"/>
+    </copy>
+    <chmod file="${versiondist}/BitThief" perm="ugo+rx"/>
+
+    <tar destfile="${versiondist}.tar.bz2" compression="bzip2">
+      <tarfileset dir="${dist}">
+        <include name="${name}-${version}-${revision}/**"/>
+      </tarfileset>
+    </tar>
+    <checksum file="${versiondist}.tar.bz2" algorithm="MD5"/>
+
+    <zip destfile="${versiondist}.zip" basedir="${dist}" includes="${name}-${version}-${revision}/**"/>
+    <checksum file="${versiondist}.zip" algorithm="MD5"/>
+  </target>
+
+  <target name="clean">
+    <delete dir="${build}"/>
+    <delete dir="${test-build}"/>
+    <delete dir="${dist}"/>
+  </target>
+</project>
